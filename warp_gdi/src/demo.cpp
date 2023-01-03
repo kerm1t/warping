@@ -15,8 +15,9 @@
 #include "stb_image.h"
 
 #include "bitmap.hpp"
-#include "vector.hpp"
+//#include "vector.hpp"
 #include "text.h"
+#include "warp.hpp"
 
 #include <chrono>
 #include <vector>
@@ -25,8 +26,9 @@ HDC hdcBuf;
 HBITMAP hbmBuf;
 HBITMAP hbmOldBuf;
 
-// I) background image
-img bg;
+// I) input image
+img warp_in;
+img out;
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -41,18 +43,15 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 
 const int ID_TIMER = 1;
+const int WIN_H = 1080;
+const int WIN_W = 1600;
 
 // quad/trapezoid to define warp area
 struct pt2d {
   int x;
   int y;
 };
-/*struct polygon2d {
-  std::vector<pt2d> pt;
-  int size = 0;
-};
-polygon2d poly2d;
-*/std::vector<pt2d> poly2d;
+std::vector<pt2d> poly2d;
 POINT mouse;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -81,17 +80,26 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     MSG msg;
 
     HDC hDC = GetDC(NULL);
-    bg.hdcMem = CreateCompatibleDC(hDC);
+    warp_in.hdcMem = CreateCompatibleDC(hDC);
     std::string filename = "c:\\git\\s-l1600.jpg";
-    bg.load(filename);
+//    std::string filename = "..\\..\\lane.png";
+    warp_in.load(filename);
+
+    out.hdcMem = CreateCompatibleDC(hDC);
+    out.load(filename); // hack / tmp, just load same thing as above
+
+    int wx[4] = { 0,80,50,0 };
+    int wy[4] = { 0,0,70,50 };
+    warp(&warp_in, &out, 300, 90, 400, 190, wx, wy);
+//    warp(&warp_in, &out, 30, 200, 100, 250, wx, wy);
 
 //    grid();
-    loadText(1600, 617); // Bildschirm-Text (BTX) initialisieren
+    loadText(WIN_W, WIN_H); // Bildschirm-Text (BTX) initialisieren
 
 
     // double buffer, otherwise too much flicker
     hdcBuf = CreateCompatibleDC(hDC);
-    hbmBuf = CreateCompatibleBitmap(hDC, 1600, 617);
+    hbmBuf = CreateCompatibleBitmap(hDC, WIN_W, WIN_H);
     hbmOldBuf = (HBITMAP)SelectObject(hdcBuf, hbmBuf);
 
     // (3) trigger WM_PAINT event
@@ -112,8 +120,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     ReleaseDC(NULL, hDC);
-    ReleaseDC(NULL, bg.hdcMem); // is this needed? as not created with GetDC
+    ReleaseDC(NULL, warp_in.hdcMem); // is this needed? as not created with GetDC
+    ReleaseDC(NULL, out.hdcMem); // is this needed? as not created with GetDC
     DeleteDC(hDC);
+    DeleteDC(warp_in.hdcMem);
+    DeleteDC(out.hdcMem);
 
     DeleteDC(hdcBuf);
     DeleteObject(hbmBuf);
@@ -167,10 +178,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // Store instance handle in our global variable
 
-   #define FENSTERLEISTE 50 // ???
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, (WS_OVERLAPPED | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU),
+//   #define FENSTERLEISTE 50 // ???
+   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+//   HWND hWnd = CreateWindowW(szWindowClass, szTitle, (WS_OVERLAPPED | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU),
 //      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
-   CW_USEDEFAULT, 0, 1600, 617+ FENSTERLEISTE, nullptr, nullptr, hInstance, nullptr);
+   CW_USEDEFAULT, 0, WIN_W, WIN_H/*+ FENSTERLEISTE*/, nullptr, nullptr, hInstance, nullptr);
 
    if (!hWnd)
    {
@@ -195,30 +207,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-//    int x, y;
     switch (message)
     {
-/*    case MM_JOY1MOVE:                     // changed position 
-      if ((UINT)wParam & (JOY_BUTTON1 | JOY_BUTTON2))
-        break;
-    case MM_JOY1BUTTONDOWN:               // button is down 
-      if ((UINT)wParam & JOY_BUTTON1) // X
-      {
-      }
-      else if ((UINT)wParam & JOY_BUTTON2)
-      {
-      }
-      break;
-    case MM_JOY1BUTTONUP:                 // button is up 
-      break; 
-*/    case WM_CREATE:
-/*      if (joySetCapture(hWnd, JOYSTICKID1, NULL, FALSE))
-      {
-        MessageBeep(MB_ICONEXCLAMATION);
-        MessageBox(hWnd, "Couldn't capture the joystick.", NULL, MB_OK | MB_ICONEXCLAMATION);
-        PostMessage(hWnd, WM_CLOSE, 0, 0L);
-      }
-*/      
+    case WM_CREATE:
         DragAcceptFiles(hWnd, TRUE); // drag n drop, yeah!
         break;
     // https://learn.microsoft.com/en-us/windows/win32/gdi/drawing-with-the-mouse
@@ -226,8 +217,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_LBUTTONUP:
-      //draw
-//      poly2d.pt.push_back({ mouse.x,mouse.y });
       poly2d.push_back({ mouse.x,mouse.y });
       break;
 
@@ -264,16 +253,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 // draw stuff (drawing can only happen here ...)
             
-            if (bg.img != NULL) BitBlt(hdcBuf, 0, 0, 1600, 617, bg.hdcMem, 0, 0, SRCCOPY);
+            if (warp_in.img != NULL) BitBlt(hdcBuf, 0, 0, warp_in.w, warp_in.h, warp_in.hdcMem, 0, 0, SRCCOPY);
+            int y_out = warp_in.h; // blit just below input image
+            if (out.img != NULL) BitBlt(hdcBuf, 0, y_out, out.w, out.h, out.hdcMem, 0, 0, SRCCOPY);
 
             std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
             std::chrono::milliseconds rt_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);// .count();
-            char buf[50];
-            sprintf(buf, "runtime: %d [ms]", rt_ms);
-            if (bg.img != NULL) doText(bg.dibdata, 1600 * 3, 20, 20, buf);
+            if (warp_in.img != NULL) {
+              char buf[50];
+              sprintf(buf, "runtime: %d [ms]", rt_ms);
+              doText(warp_in.dibdata, warp_in.w * 3, 20, 20, buf); // draw into img?
+              sprintf(buf, "mouse-x: %d", mouse.x);
+              doText(warp_in.dibdata, warp_in.w * 3, 20, 30, buf); // draw into img?
+              sprintf(buf, "mouse-y: %d", mouse.y);
+              doText(warp_in.dibdata, warp_in.w * 3, 20, 40, buf); // draw into img?
+            }
 
-            //          Ellipse(hdcBuf, poly2d.pt[0].x - 5, poly2d.pt[0].y - 5, poly2d.pt[0].x + 5, poly2d.pt[0].y + 5);
-            HPEN hPen = CreatePen(PS_SOLID, 3, RGB(0, 255, 0));
+
+            // draw control points / polygon
+            HPEN hPen = CreatePen(PS_SOLID, 3, RGB(255, 0, 0));
             SelectObject(hdcBuf, hPen);
             if (poly2d.size() > 0) {
               Ellipse(hdcBuf, poly2d[0].x - 5, poly2d[0].y - 5, poly2d[0].x + 5, poly2d[0].y + 5);
@@ -286,7 +284,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             DeleteObject(hPen);
 
-            BitBlt(hdc, 0, 0, 1600, 617, hdcBuf, 0, 0, SRCCOPY); // double buffer
+
+            BitBlt(hdc, 0, 0, WIN_W, WIN_H, hdcBuf, 0, 0, SRCCOPY); // double buffer
             EndPaint(hWnd, &ps);
         }
         break;
@@ -299,7 +298,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_DROPFILES:
         char filename[MAX_PATH];
         DragQueryFileA((HDROP)wParam, 0, filename, MAX_PATH); // use file >> 0 << in list of dragged files
-        bg.load(filename);
+        warp_in.load(filename);
         RedrawWindow(hWnd, 0, 0, RDW_INVALIDATE | RDW_UPDATENOW);
         DragFinish((HDROP)wParam);
         break;

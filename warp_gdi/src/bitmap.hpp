@@ -1,3 +1,5 @@
+#ifndef BITMAP_H
+#define BITMAP_H
 #include "framework.h"
 
 class img {
@@ -233,3 +235,4 @@ HBITMAP CreateBitmapMask(HBITMAP hbmColour, COLORREF crTransparent)
 
   return hbmMask;
 }
+#endif // BITMAP_H

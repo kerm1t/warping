@@ -1,0 +1,15 @@
+projects:
+- warp_gdi (soll auch ein warp_gl oder besser warp_sokol geben?)
+
+
+1/3/2022
+
+- warp fixen
+- warp so, dass input = 4 koord und out = 2 koord (derzeit vice versa)
+- warp zeichnen + benutzen als input
+- class oder struct f. geom. figur
+  zeichnen mit der maus
+  - 2 koord. -> rechteck
+  - 4 koord -> trapezoid
+  - 2 koord -> kreis  etc.
+- control points verschieben

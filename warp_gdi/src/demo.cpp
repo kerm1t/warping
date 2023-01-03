@@ -46,6 +46,15 @@ const int ID_TIMER = 1;
 const int WIN_H = 1080;
 const int WIN_W = 1600;
 
+// 0, 100, 100, 0, 200, 200
+//float rotx[3] = {0,100,200};
+//float roty[3] = { 200,0,200 };
+float rotx[3] = { 120,0,-120 };
+float roty[3] = { -100,100,-100 };
+float angle = 0.5f*3.14159f/180.0f;
+float xnew[3];
+float ynew[3];
+
 // quad/trapezoid to define warp area
 struct pt2d {
   int x;
@@ -92,6 +101,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     int wy[4] = { 0,0,70,50 };
     warp(&warp_in, &out, 300, 90, 400, 190, wx, wy);
 //    warp(&warp_in, &out, 30, 200, 100, 250, wx, wy);
+
+//    roto_zoom(&warp_in, &out, 0,100, 100,0, 200,200);
 
 //    grid();
     loadText(WIN_W, WIN_H); // Bildschirm-Text (BTX) initialisieren
@@ -284,6 +295,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             DeleteObject(hPen);
 
+            for (int i = 0; i < 3; i++) {
+              Ellipse(hdcBuf, xnew[i] - 5, ynew[i] - 5, xnew[i] + 5, ynew[i] + 5);
+
+            }
+
 
             BitBlt(hdc, 0, 0, WIN_W, WIN_H, hdcBuf, 0, 0, SRCCOPY); // double buffer
             EndPaint(hWnd, &ps);
@@ -291,6 +307,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_TIMER:
         {
+//          float xnew[3];
+//          float ynew[3];
+//          float radius = 1.0f;
+          for (int i = 0; i < 3; i++) {
+            xnew[i] = rotx[i] * cos(angle) - roty[i] * sin(angle)+1340;
+            ynew[i] = roty[i] * cos(angle) + rotx[i] * sin(angle)+280;
+//            xnew[i] = radius * cos(angle)+rotx[i];
+//            ynew[i] = radius * sin(angle)+roty[i];
+          }
+          roto_zoom(&warp_in, &out, xnew[0], ynew[0], xnew[1], ynew[1], xnew[2], ynew[2]);
+          angle -= (5.0f*3.14159f / 180.0f);
+//          roto_zoom(&warp_in, &out, 0, 100, 100, 0, 200, 200);
+
           // trigger a redraw, otherwise there will be no WM_PAINT event
           RedrawWindow(hWnd, 0, 0, RDW_INVALIDATE | RDW_UPDATENOW);
         }

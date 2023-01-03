@@ -37,3 +37,49 @@ void warp(img* in, img* out, int sx, int sy, int ex, int ey, int *wx, int *wy) {
     }
   }
 }
+
+
+// texture mapping ...
+
+
+// it's not roto zoom, rather a kind of texture mapper
+// roto + zoom has to happen outside
+void roto_zoom(img* in, img* out, float Ax, float Ay, float Bx, float By, float Cx, float Cy) {
+  int IMGRowBytes = in->w * in->channels; // needed for img access
+  unsigned char *pti, *pto;
+
+  // compute deltas
+  float dxdx = (Bx - Ax) / 320.0f,
+    dydx = (By - Ay) / 320.0f,
+    dxdy = (Cx - Ax) / 200.0f,
+    dydy = (Cy - Ay) / 200.0f;
+  long offs = 0;
+  // loop for all lines
+  for (int j = 0; j < 200; j++)
+  {
+    Cx = Ax;
+    Cy = Ay;
+    // for each pixel
+    for (int i = 0; i < 320; i++)
+    {
+      // get texel and store pixel
+//      page_draw[offs] = texture[((Cy >> 8) & 0xff00) + ((Cx >> 16) & 0xff)];
+      int ix = Cx;
+      int iy = Cy;
+      int ox = offs % 320;
+      int oy = offs / 320;
+      if ((ix > 0) && (iy > 0)) {
+        pti = in->dibdata + ix * 3 + iy * IMGRowBytes;
+        pto = out->dibdata + ox * 3 + oy * IMGRowBytes;
+        memcpy((void*)pto, (void*)pti, 3);
+      }
+      // interpolate to get next texel in texture space
+      Cx += dxdx;
+      Cy += dydx;
+      offs++;
+    }
+    // interpolate to get start of next line in texture space
+    Ax += dxdy;
+    Ay += dydy;
+  }
+}

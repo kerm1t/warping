@@ -46,11 +46,10 @@ const int ID_TIMER = 1;
 const int WIN_H = 1080;
 const int WIN_W = 1600;
 
-// 0, 100, 100, 0, 200, 200
-//float rotx[3] = {0,100,200};
-//float roty[3] = { 200,0,200 };
-float rotx[3] = { 120,0,-120 };
-float roty[3] = { -100,100,-100 };
+// gleichschenkliges dreieck (isosceles triangle?):
+// 360/3 = 120 --> sin(120) = .86, sin(30) = .5
+float rotx[3] = { 86,0,-86 };
+float roty[3] = { -50,100,-50 };
 float angle = 0.5f*3.14159f/180.0f;
 float xnew[3];
 float ynew[3];
@@ -311,8 +310,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 //          float ynew[3];
 //          float radius = 1.0f;
           for (int i = 0; i < 3; i++) {
-            xnew[i] = rotx[i] * cos(angle) - roty[i] * sin(angle)+1340;
-            ynew[i] = roty[i] * cos(angle) + rotx[i] * sin(angle)+280;
+            xnew[i] = rotx[i] * cos(angle) - roty[i] * sin(angle)+mouse.x;
+            ynew[i] = roty[i] * cos(angle) + rotx[i] * sin(angle)+mouse.y;
 //            xnew[i] = radius * cos(angle)+rotx[i];
 //            ynew[i] = radius * sin(angle)+roty[i];
           }
